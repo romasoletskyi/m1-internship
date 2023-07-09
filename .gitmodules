@@ -1,0 +1,3 @@
+[submodule "WCRG"]
+	path = WCRG
+	url = https://github.com/Elempereur/WCRG.git
