@@ -2,6 +2,8 @@ import torch
 
 def calculate_shift(clean_ansatz, ansatz, phi):
     L = ansatz.L
+    device = phi.device
+    
     potential_dim = clean_ansatz.slices[1][0]
     gaussian_dim = clean_ansatz.slices[1][1] - potential_dim
     pot = ansatz.ansatze[0]
