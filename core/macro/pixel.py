@@ -1,12 +1,16 @@
+import numpy as np
 import torch
 import torch.nn as nn
+
+from .noise import NoiseSigmoidWindows
 
 class PixelEnergy(nn.Module):
     def __init__(self, centers, sigma):
         super().__init__()
+        self.device = centers.device
         self.centers = centers
         self.sigma = sigma
-        self.theta = torch.nn.Parameter(torch.zeros(len(centers) + 1).to(device), requires_grad=True)
+        self.theta = torch.nn.Parameter(torch.zeros(len(centers) + 1).to(self.device), requires_grad=True)
         
     def potential(self, phi, theta=None):
         stat = torch.cat([torch.sigmoid(-(phi[:, None] - self.centers) / self.sigma), phi[:, None] ** 2], dim=1)
@@ -17,9 +21,10 @@ class PixelEnergy(nn.Module):
 class NoisePixelEnergy(nn.Module):
     def __init__(self, centers, sigma):
         super().__init__()
+        self.device = centers.device
         self.centers = centers
         self.sigma = sigma
-        self.theta = torch.nn.Parameter(torch.zeros(len(centers) + 1).to(device), requires_grad=True)        
+        self.theta = torch.nn.Parameter(torch.zeros(len(centers) + 1).to(self.device), requires_grad=True)        
         self.points = NoiseSigmoidWindows.prepare_points(self.sigma)
         
     def potential(self, phi, theta=None):
@@ -32,8 +37,8 @@ class NoisePixelEnergy(nn.Module):
             stat = torch.matmul(stat, theta)
         return stat
     
-def denoise_pixel(ansatz, noise_pixel_ansatz, phi_d, lr=1e-2, n_epochs=100, momentum=0.9, sample_size=65536):
-    step = 1
+def denoise_pixel(ansatz, noise_pixel_ansatz, phi_d, lr=1e-2, momentum=0.9, n_epochs=100, step=1, sample_size=65536):
+    device = noise_pixel_ansatz.device
     window_min, window_max = phi_d.min(), phi_d.max()
 
     pot = ansatz.ansatze[0]
