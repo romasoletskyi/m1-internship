@@ -1,3 +1,6 @@
 [submodule "WCRG"]
 	path = WCRG
 	url = https://github.com/Elempereur/WCRG.git
+[submodule "scattering_transform"]
+	path = scattering_transform
+	url = https://github.com/SihaoCheng/scattering_transform.git
