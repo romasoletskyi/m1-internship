@@ -272,7 +272,7 @@ def Show_NoiseSigmoid(ansatz_union,add_Trace=True,Free=False,index_scalar=0,inde
 
     #Compute Trace
     if add_Trace == True:
-        Sq = Square_laplacian(ansatz_union,Free=Free,index_quad=index_quad)
+        Sq = wcrg.Square_laplacian(ansatz_union,Free=Free,index_quad=index_quad)
     else:
         Sq =0
     plt.plot(X.cpu().detach(),(theta@U+(Sq/2)*X**2).cpu().detach())

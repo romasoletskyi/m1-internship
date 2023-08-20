@@ -34,19 +34,27 @@ def calculate_shift(clean_ansatz, ansatz, phi):
 
     phi_n = torch.randn(phi.shape, device=device)
     sig = torch.sigmoid(-((phi + phi_n)[:, None] - pot.centers) / pot.sigma)
-    diff = (0.25 * L**2) * torch.mean(-sig * (1 - sig) * phi_n[:, None], dim=0) / pot.sigma
+    sig_grad = -sig * (1 - sig) / pot.sigma
+    diff = (0.25 * L**2) * torch.mean(sig_grad * phi_n[:, None], dim=0)
 
     shift_ku = torch.zeros(potential_dim, gaussian_dim, device=device)
     shift_ku[:, mask] = diff[:, None]
 
     # potential - potential
+    
+    main = []
+    mean = []
 
-    sig = torch.sigmoid(-((phi + phi_n)[:, None, None] + pot.points - pot.centers[:, None]) / pot.sigma[:, None])
-    sig_grad = -sig * (1 - sig) / pot.sigma[:, None]
-    sig_grad_conv = pot.convolve(sig_grad, pot.points)
+    for x in torch.utils.data.DataLoader(phi, batch_size=1024):
+        sig = torch.sigmoid(-(x[:, None, None] + pot.points - pot.centers[:, None]) / pot.sigma[:, None])
+        sig_grad = -sig * (1 - sig) / pot.sigma[:, None]
+        sig_grad_conv = pot.convolve(sig_grad, pot.points)
 
-    main = (pot.convolve(sig_grad[:, :, None, :] * sig_grad[:, None, :, :], pot.points)).mean(dim=0)
-    mean = (sig_grad_conv[:, :, None] * sig_grad_conv[:, None, :]).mean(dim=0)
+        main.append((pot.convolve(sig_grad[:, :, None, :] * sig_grad[:, None, :, :], pot.points)))
+        mean.append((sig_grad_conv[:, :, None] * sig_grad_conv[:, None, :]))
+
+    main = torch.cat(main).mean(dim=0)
+    mean = torch.cat(mean).mean(dim=0)
 
     shift_uu = (0.75 * L**2) * (main - mean)
 

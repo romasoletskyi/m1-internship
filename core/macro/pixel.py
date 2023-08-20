@@ -37,7 +37,8 @@ class NoisePixelEnergy(nn.Module):
             stat = torch.matmul(stat, theta)
         return stat
     
-def denoise_pixel(ansatz, noise_pixel_ansatz, phi_d, lr=1e-2, momentum=0.9, n_epochs=100, step=1, sample_size=65536):
+def denoise_pixel(ansatz, noise_pixel_ansatz, phi_d, lr=1e-2, momentum=0.9, n_epochs=100, step=1, sample_size=65536, 
+                  verbose=True):
     device = noise_pixel_ansatz.device
     window_min, window_max = phi_d.min(), phi_d.max()
 
@@ -50,7 +51,8 @@ def denoise_pixel(ansatz, noise_pixel_ansatz, phi_d, lr=1e-2, momentum=0.9, n_ep
 
     def closure():
         nonlocal phi, loss_list, iter_num
-        print('Iteration', iter_num)
+        if verbose:
+            print('Iteration', iter_num)
         
         theta = noise_pixel_ansatz.theta
         energy = noise_pixel_ansatz.potential(phi, theta)
@@ -68,21 +70,24 @@ def denoise_pixel(ansatz, noise_pixel_ansatz, phi_d, lr=1e-2, momentum=0.9, n_ep
 
             accept_log.append(mask.float().mean().item())
             if (q + 1) % 50 == 0:
-                print('Acceptance rate', np.mean(accept_log))
+                if verbose:
+                    print('Acceptance rate', np.mean(accept_log))
                 accept_log = []  
         
         sample_stat = noise_pixel_ansatz.potential(phi)
         stat = sample_stat.mean(dim=0)
         
-        fisher = (sample_stat[:, :, None] * sample_stat[:, None, :]).mean(dim=0) - stat[:, None] * stat[None, :]
-        theta.grad = torch.linalg.solve(fisher + 0.01 * torch.eye(len(stat), device=device), target_stat - stat)
-
-        print(theta)
-        print(theta.grad)
+        cov = (sample_stat**2).mean(dim=0) - stat**2
+        theta.grad = (target_stat - stat) / cov**(1/2)
 
         loss = (target_stat - sample_stat).abs().mean().item()
-        loss_list.append((loss, theta.detach().clone()))
-        print('Loss', loss)
+        norm_loss = ((target_stat - sample_stat)**2 / cov).mean().item()
+        loss_list.append((loss, norm_loss, theta.detach().clone()))
+        
+        if verbose:
+            print(theta)
+            print(theta.grad)
+            print('loss', loss, 'norm loss', norm_loss)
 
         return loss
 
