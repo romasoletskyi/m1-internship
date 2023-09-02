@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+from ..scattering import *
 
 class VarBayes:
     def __init__(self, st_calc, threshold_func, mask, images, target_image, eta,
@@ -29,11 +30,12 @@ class VarBayes:
         
     def calculate_stat(self, images):
         s_cov = self.st_calc.scattering_cov(images)
-        log_P00 = s_cov['for_synthesis'][:,1:1 + J * L]
-        stat = self.threshold_func(s_cov, mask)
+        log_P00 = s_cov['for_synthesis'][:,1:1 + self.st_calc.J * self.st_calc.L]
+        stat = self.threshold_func(s_cov, self.mask)
         return torch.cat([log_P00, stat], dim=1)
                         
     def expand_stat(self, s):
+        J, L = self.st_calc.J, self.st_calc.L
         log_P00 = s[:, :J * L].reshape((-1, J, L))
         stat = s[:, J * L:]
         return torch.exp(log_P00), stat
@@ -66,7 +68,8 @@ class VarBayes:
         self.clean_stat.append(self.mu + eps * self.sigma) 
         P00, stat = self.expand_stat(self.clean_stat[-1])
         
-        self.images.append(np.stack([scattering.synthesis(
+        M, N, J, L = self.st_calc.M, self.st_calc.N, self.st_calc.J, self.st_calc.L       
+        self.images.append(np.stack([synthesis(
             's_cov_func', mode='estimator', M=M, N=N, J=J, L=L,
             target=stat[i:i+1], reference_P00=P00[i:i+1],
             s_cov_func=self.threshold_func, s_cov_func_params=self.mask)[0] 
